@@ -88,7 +88,7 @@ with mp.tasks.vision.FaceLandmarker.create_from_options(options) as landmarker:
         cv2.putText(image, f"t = {t:.2f} s | visages : {n} | points : {n_points}",
                     (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.imshow("Detection", image)
-
+        
         touche = cv2.waitKey(1) & 0xFF
         if touche == ord(" "):
             touche = cv2.waitKey(0) & 0xFF
@@ -99,9 +99,11 @@ with mp.tasks.vision.FaceLandmarker.create_from_options(options) as landmarker:
 cap.release()
 cv2.destroyAllWindows()
 
+total = sum(compte_visages.values())
+
 print("Visages détectés par YuNet :")
 for n in sorted(compte_visages):
-    print(f"  {n} : {compte_visages[n]} images ({100 * compte_visages[n] / i:.1f} %)")
+    print(f"  {n} : {compte_visages[n]} images ({100 * compte_visages[n] / total:.1f} %)")
 print("Visages avec points MediaPipe :")
 for n in sorted(compte_points):
-    print(f"  {n} : {compte_points[n]} images ({100 * compte_points[n] / i:.1f} %)")
+    print(f"  {n} : {compte_points[n]} images ({100 * compte_points[n] / total:.1f} %)")
