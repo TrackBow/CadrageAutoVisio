@@ -4,24 +4,10 @@ import csv
 import math
 import cv2
 import mediapipe as mp
+from commun import TAILLE_CROP, creer_yunet, options_landmarker, zone_elargie
 from suivi import Suiveur
 
-MODELE_YUNET = "models/yunet.onnx"
-MODELE_POINTS = "models/face_landmarker.task"
-MARGE = 0.4
-TAILLE_CROP = 256
 HAUT, BAS, GAUCHE, DROITE = 13, 14, 78, 308   # points des lèvres
-
-
-def zone_elargie(x, y, w, h, largeur, hauteur):
-    """Carré centré sur le visage, plus grand que la boîte, gardé dans l'image."""
-    cx, cy = x + w / 2, y + h / 2
-    cote = max(w, h) * (1 + 2 * MARGE)
-    x1 = int(max(0, cx - cote / 2))
-    y1 = int(max(0, cy - cote / 2))
-    x2 = int(min(largeur, cx + cote / 2))
-    y2 = int(min(hauteur, cy + cote / 2))
-    return x1, y1, x2, y2
 
 
 def ouverture_bouche(points):
@@ -48,17 +34,11 @@ largeur = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 hauteur = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 nb_images = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-yunet = cv2.FaceDetectorYN.create(MODELE_YUNET, "", (largeur, hauteur),
-                                  score_threshold=0.6)
-options = mp.tasks.vision.FaceLandmarkerOptions(
-    base_options=mp.tasks.BaseOptions(model_asset_path=MODELE_POINTS),
-    running_mode=mp.tasks.vision.RunningMode.IMAGE,
-    num_faces=1,
-)
+yunet = creer_yunet(largeur, hauteur)
 suiveur = Suiveur(iou_min=0.3, max_manquees=15)
 
 with open(sortie, "w", newline="") as fichier, \
-     mp.tasks.vision.FaceLandmarker.create_from_options(options) as landmarker:
+     mp.tasks.vision.FaceLandmarker.create_from_options(options_landmarker()) as landmarker:
     ecrivain = csv.writer(fichier)
     ecrivain.writerow(["image", "t", "id", "ouverture"])   # ligne d'en-tête
 

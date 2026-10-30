@@ -1,21 +1,13 @@
 import sys
-import pandas as pd
 import matplotlib.pyplot as plt
+from commun import lire_signaux, lire_verite
+from score import score_passe_bande
 
 fichier = sys.argv[1] if len(sys.argv) > 1 else "outputs/signaux.csv"
-df = pd.read_csv(fichier)                     # les cases vides deviennent NaN
-
-# Format long (une ligne par personne et par image) -> format large
-# (une ligne par instant, une colonne par personne)
-signaux = df.pivot(index="t", columns="id", values="ouverture")
-
-# Score de parole : filtre médian (supprime les pics isolés),
-# puis écart-type glissant sur 0,5 s (mesure l'agitation de la bouche)
-lisse = signaux.rolling(5, center=True, min_periods=3).median()
-score = lisse.rolling(15, center=True, min_periods=8).std()
-
-# Vérité terrain : identifiant -> intervalles de parole en secondes
-VERITE = {3: [(0, 48)], 1: [(48, 96)], 2: [(96, 98)]}
+annotations = sys.argv[2] if len(sys.argv) > 2 else "annotations/test.csv"
+signaux, fs = lire_signaux(fichier)
+orateurs, autres = lire_verite(annotations)
+score = score_passe_bande(signaux, fs)
 
 
 def tracer(donnees, titre, sortie):
@@ -24,9 +16,10 @@ def tracer(donnees, titre, sortie):
                              figsize=(14, 8))
     for ax, ident in zip(axes, donnees.columns):
         ax.plot(donnees.index, donnees[ident], linewidth=0.6)
-        for debut, fin in VERITE.get(ident, []):
+        for debut, fin in orateurs.get(ident, []):
             ax.axvspan(debut, fin, color="orange", alpha=0.3)   # parle
-        ax.axvspan(101, 120, color="grey", alpha=0.2)           # journaliste hors champ
+        for debut, fin in autres.get("hors_champ", []):
+            ax.axvspan(debut, fin, color="grey", alpha=0.2)     # journaliste hors champ
         ax.set_ylabel(f"#{ident}")
     axes[-1].set_xlabel("temps (s)")
     fig.suptitle(titre)
@@ -36,6 +29,6 @@ def tracer(donnees, titre, sortie):
 
 tracer(signaux, "Ouverture de la bouche (orange : parle, gris : voix hors champ)",
        "outputs/signaux.png")
-tracer(score, "Score de parole : écart-type glissant sur 0,5 s du signal filtré",
+tracer(score, "Score de parole v2 : énergie glissante sur 0,5 s du passe-bande 2-8 Hz",
        "outputs/score.png")
 plt.show()   # affiche les deux fenêtres

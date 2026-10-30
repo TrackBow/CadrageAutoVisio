@@ -1,26 +1,12 @@
 import sys
 import cv2
 import mediapipe as mp
-from suivi import Suiveur                          
+from commun import TAILLE_CROP, creer_yunet, options_landmarker, zone_elargie
+from suivi import Suiveur
 
-MODELE_YUNET = "models/yunet.onnx"
-MODELE_POINTS = "models/face_landmarker.task"
 LEVRES = {13, 14, 78, 308}   # haut, bas, coin gauche, coin droit
-MARGE = 0.4                  # on élargit la boîte de 40 % de chaque côté
-TAILLE_CROP = 256            # taille de la découpe donnée à MediaPipe
 COULEURS = [(255, 0, 0), (0, 200, 0), (0, 165, 255), (255, 0, 255),
-            (255, 255, 0), (0, 255, 255)]                  
-
-
-def zone_elargie(x, y, w, h, largeur, hauteur):
-    """Carré centré sur le visage, plus grand que la boîte, gardé dans l'image."""
-    cx, cy = x + w / 2, y + h / 2
-    cote = max(w, h) * (1 + 2 * MARGE)
-    x1 = int(max(0, cx - cote / 2))
-    y1 = int(max(0, cy - cote / 2))
-    x2 = int(min(largeur, cx + cote / 2))
-    y2 = int(min(hauteur, cy + cote / 2))
-    return x1, y1, x2, y2
+            (255, 255, 0), (0, 255, 255)]
 
 
 if len(sys.argv) < 2:
@@ -33,19 +19,12 @@ fps = cap.get(cv2.CAP_PROP_FPS)
 largeur = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 hauteur = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-yunet = cv2.FaceDetectorYN.create(MODELE_YUNET, "", (largeur, hauteur),
-                                  score_threshold=0.6)
-options = mp.tasks.vision.FaceLandmarkerOptions(
-    base_options=mp.tasks.BaseOptions(model_asset_path=MODELE_POINTS),
-    running_mode=mp.tasks.vision.RunningMode.IMAGE,
-    num_faces=1,
-)
-
-suiveur = Suiveur(iou_min=0.3, max_manquees=15)           
+yunet = creer_yunet(largeur, hauteur)
+suiveur = Suiveur(iou_min=0.3, max_manquees=15)
 vus = {}             # identifiant -> nombre d'images où il est détecté
 sans_points = {}     # identifiant -> nombre d'images sans points MediaPipe
 
-with mp.tasks.vision.FaceLandmarker.create_from_options(options) as landmarker:
+with mp.tasks.vision.FaceLandmarker.create_from_options(options_landmarker()) as landmarker:
     i = 0
     while True:
         ok, image = cap.read()
